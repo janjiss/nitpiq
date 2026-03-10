@@ -29,7 +29,6 @@ export function parseDiffRows(diffText: string): DiffRow[] {
     }
 
     if (line.startsWith("diff --git") || line.startsWith("index ") || line.startsWith("--- ") || line.startsWith("+++ ")) {
-      rows.push({ kind: "header", text: line, oldLine: null, newLine: null });
       continue;
     }
 

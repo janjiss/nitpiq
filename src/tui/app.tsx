@@ -407,8 +407,10 @@ export function CustodianApp({ repo, store, demoState, snapshot = false, theme }
       return;
     }
     const change = fileChangeMap.get(nextPath);
+    const fileDiff = change ? diff(repo, change, expandedContext) : "";
     setCurrentContent(content);
-    setCurrentDiff(change ? diff(repo, change, expandedContext) : "");
+    setCurrentDiff(fileDiff);
+    if (!fileDiff) setShowFullFile(true);
     if (session) {
       loadThreads(session, nextPath, content);
     }
@@ -449,7 +451,7 @@ export function CustodianApp({ repo, store, demoState, snapshot = false, theme }
     if (input === "k" || key.upArrow) { setFileCursor((c: number) => Math.max(c - 1, 0)); return; }
     if (input === "l" || key.return) { setFocus("diff"); return; }
     if (input === "/") { setInputMode("filter"); setDraft(filterQuery); setStatus("Filter files"); return; }
-    if (input === "m") {
+    if (input === "f") {
       setFileListMode((c) => c === "changes" ? "all" : "changes");
       setFileCursor(0);
       setFilterQuery("");
@@ -625,7 +627,12 @@ export function CustodianApp({ repo, store, demoState, snapshot = false, theme }
     }
 
     if (input === ":") { clearCount(); setInputMode("goto"); setDraft(""); setStatus("Go to line"); return; }
-    if (input === "f") { clearCount(); setShowFullFile((c: boolean) => !c); return; }
+    if (input === "f") {
+      clearCount();
+      if (showFullFile && !currentDiff) { setStatus("No diff available"); return; }
+      setShowFullFile((c: boolean) => !c);
+      return;
+    }
     if (input === "e" && !showFullFile) {
       const next = expandedContext === 3 ? 10 : expandedContext === 10 ? 999 : 3;
       setExpandedContext(next);
@@ -900,7 +907,7 @@ export function CustodianApp({ repo, store, demoState, snapshot = false, theme }
     : `${repoFiles.length} file${repoFiles.length !== 1 ? "s" : ""}`;
   const titleRight = `${pc.dim(`${modeLabel} · ${countLabel}`)} `;
 
-  const fHeader = fileListMode === "changes" ? "files" : "all files";
+  const fHeader = fileListMode === "changes" ? "changed files" : "all files";
   const fLabel = focus === "files" ? fg(t.accent, pc.bold(fHeader)) : pc.dim(fHeader);
   const pLabel = currentPath
     ? (focus === "diff" ? fg(t.accent, pc.bold(currentPath)) : pc.dim(currentPath))
@@ -925,7 +932,7 @@ export function CustodianApp({ repo, store, demoState, snapshot = false, theme }
   } else if (inputMode === "search" || inputMode === "goto") {
     keybinds = "type to " + inputMode + "  ⏎ confirm  Esc cancel";
   } else if (focus === "files") {
-    keybinds = `j/k ↕  l/⏎ open  m ${fileListMode === "changes" ? "all" : "changes"}  / filter  s stage  r refresh  q quit`;
+    keybinds = `j/k ↕  l/⏎ open  f ${fileListMode === "changes" ? "all" : "changes"}  / filter  s stage  r refresh  q quit`;
   } else {
     const threadHints = threadAtLine ? "  r resolve  d delete" : "";
     keybinds = `j/k ↕  gg/G top/end  w/b change  {/} hunk  [/] thread  zz center  / search  c comment  v visual${threadHints}  q back`;
