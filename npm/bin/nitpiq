@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+
+const childProcess = require("child_process");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+
+function run(target) {
+  const result = childProcess.spawnSync(target, process.argv.slice(2), {
+    stdio: "inherit",
+  });
+  if (result.error) {
+    console.error(result.error.message);
+    process.exit(1);
+  }
+  process.exit(typeof result.status === "number" ? result.status : 0);
+}
+
+const scriptDir = path.dirname(fs.realpathSync(__filename));
+
+const cached = path.join(scriptDir, ".nitpiq");
+if (fs.existsSync(cached)) {
+  run(cached);
+}
+
+const platformMap = { darwin: "darwin", linux: "linux" };
+const archMap = { x64: "x64", arm64: "arm64" };
+
+const platform = platformMap[os.platform()] || os.platform();
+const arch = archMap[os.arch()] || os.arch();
+const pkg = `nitpiq-${platform}-${arch}`;
+
+function findBinary(startDir) {
+  let current = startDir;
+  for (;;) {
+    const candidate = path.join(current, "node_modules", pkg, "bin", "nitpiq");
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+const resolved = findBinary(scriptDir);
+if (!resolved) {
+  console.error(
+    `Could not find the nitpiq binary. Try installing the platform package manually: npm install ${pkg}`,
+  );
+  process.exit(1);
+}
+
+run(resolved);

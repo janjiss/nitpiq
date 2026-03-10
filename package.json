@@ -4,21 +4,14 @@
   "description": "Terminal-based code review tool for local git changes",
   "type": "module",
   "license": "MIT",
-  "bin": {
-    "nitpiq": "bin/nitpiq.ts",
-    "nitpiq-mcp": "bin/nitpiq-mcp.ts"
-  },
-  "files": [
-    "bin/",
-    "src/",
-    "plugins/",
-    "bunfig.toml"
-  ],
+  "private": true,
   "scripts": {
     "nitpiq": "bun run src/cli/nitpiq.tsx",
     "nitpiq-mcp": "bun run src/cli/nitpiq-mcp.ts",
     "dev": "bun run src/cli/nitpiq.tsx",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "build": "bun run scripts/build.ts",
+    "publish-all": "bun run scripts/publish.ts"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

@@ -166,8 +166,34 @@ Set with `--theme=<name>`:
 - **nord** -- arctic blue tones
 - **gruvbox** -- warm retro colors
 
-## Type Check
+## Development
 
 ```bash
-bun run check
+git clone <repo-url> && cd nitpiq
+bun install
+bun run dev          # run TUI from source
+bun run check        # type check
+```
+
+## Building & Publishing
+
+Build compiled binaries for all platforms:
+
+```bash
+VERSION=0.2.0 bun run build
+```
+
+This creates `dist/` with:
+- `nitpiq-linux-x64/` -- Linux x64 binary package
+- `nitpiq-linux-arm64/` -- Linux arm64 binary package
+- `nitpiq-darwin-x64/` -- macOS x64 binary package
+- `nitpiq-darwin-arm64/` -- macOS arm64 binary package
+- `nitpiq/` -- main package (wrapper + postinstall)
+
+Publish all packages to npm:
+
+```bash
+VERSION=0.2.0 bun run build
+bun run publish-all          # publish to npm
+bun run publish-all -- --dry-run  # preview without publishing
 ```
