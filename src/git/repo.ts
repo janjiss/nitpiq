@@ -60,10 +60,10 @@ export function files(repo: Repo): string[] {
   const result: string[] = [];
 
   for (const line of output.split("\n")) {
-    const candidate = line.trim();
-    if (!candidate || seen.has(candidate)) {
-      continue;
-    }
+    const raw = line.trim();
+    if (!raw) continue;
+    const candidate = unquoteGitPath(raw);
+    if (seen.has(candidate)) continue;
     seen.add(candidate);
     result.push(candidate);
   }
@@ -155,7 +155,7 @@ function parsePorcelain(output: string): FileChange[] {
 
     const x = line[0] ?? " ";
     const y = line[1] ?? " ";
-    let filePath = line.slice(3);
+    let filePath = unquoteGitPath(line.slice(3));
     let oldPath = "";
 
     if (filePath.endsWith("/")) {
@@ -164,8 +164,8 @@ function parsePorcelain(output: string): FileChange[] {
 
     const renameIndex = filePath.indexOf(" -> ");
     if (renameIndex >= 0) {
-      oldPath = filePath.slice(0, renameIndex);
-      filePath = filePath.slice(renameIndex + 4);
+      oldPath = unquoteGitPath(filePath.slice(0, renameIndex));
+      filePath = unquoteGitPath(filePath.slice(renameIndex + 4));
     }
 
     const change: FileChange = {
@@ -196,6 +196,19 @@ function parsePorcelain(output: string): FileChange[] {
   }
 
   return result;
+}
+
+function unquoteGitPath(p: string): string {
+  if (p.startsWith('"') && p.endsWith('"')) {
+    return p
+      .slice(1, -1)
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\")
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\([0-7]{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
+  }
+  return p;
 }
 
 function charToKind(char: string): ChangeKind {
