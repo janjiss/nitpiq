@@ -1,0 +1,32 @@
+{
+  "name": "custodian-js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "custodian": "bun run src/cli/custodian.tsx",
+    "custodian-mcp": "bun run src/cli/custodian-mcp.ts",
+    "dev": "bun run src/cli/custodian.tsx",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/plugin-syntax-jsx": "^7.28.6",
+    "@babel/plugin-syntax-typescript": "^7.28.6",
+    "@types/bun": "latest",
+    "@types/react": "^19.2.14",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "eslint-plugin-react-hooks": "^7.0.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "fuse.js": "^7.1.0",
+    "ink": "^6.8.0",
+    "parse-diff": "^0.11.1",
+    "picocolors": "^1.1.1",
+    "react": "^19.2.4",
+    "zod": "^4.3.6"
+  }
+}
