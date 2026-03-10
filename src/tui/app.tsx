@@ -175,9 +175,10 @@ function DiffPane({ viewRows, visualCursor, diffCursor, focused, markers, inputM
       : row.kind === "delete" ? fg(t.del, "-")
       : " ";
 
-    const text = row.kind === "header" || row.kind === "meta" ? pc.dim(row.text)
-      : row.kind === "hunk" ? fg(t.hunk, row.text)
-      : highlightLine(row.text, t);
+    const src = row.text.replace(/\t/g, "  ");
+    const text = row.kind === "header" || row.kind === "meta" ? pc.dim(src)
+      : row.kind === "hunk" ? fg(t.hunk, src)
+      : highlightLine(src, t);
 
     const content = ` ${mark}${lbl} ${sign} ${text}`;
 
@@ -1014,7 +1015,7 @@ function visibleLength(text: string): number {
       while (i < text.length && text.charCodeAt(i) !== 0x6d) i++;
       continue;
     }
-    count++;
+    count += text.charCodeAt(i) === 0x09 ? 2 : 1;
   }
   return count;
 }
