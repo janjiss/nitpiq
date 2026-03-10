@@ -4,8 +4,10 @@ import Fuse from "fuse.js";
 import pc from "picocolors";
 import {
   changes,
+  changesAsync,
   diff,
   files,
+  filesAsync,
   kindSymbol,
   readFile,
   stage,
@@ -357,12 +359,14 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
 
   // ── Handlers ───────────────────────────────────────────────────
 
-  const refreshAll = (activeSession: ReviewSession, soft = false): void => {
+  const refreshAll = async (activeSession: ReviewSession, soft = false): Promise<void> => {
     if (!store) return;
 
     try {
-      const nextChanges = changes(repo);
-      const nextRepoFiles = files(repo);
+      const [nextChanges, nextRepoFiles] = await Promise.all([
+        changesAsync(repo),
+        filesAsync(repo),
+      ]);
       setFileChanges(nextChanges);
       setRepoFiles(nextRepoFiles);
       setThreadCounts(store.threadCountsByFile(activeSession.id));
@@ -461,7 +465,7 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
     }
     if (input === "r") {
       if (isDemo) { setStatus("Demo mode - refresh is disabled"); return; }
-      if (session) { refreshAll(session); setStatus("Refreshed"); }
+      if (session) { void refreshAll(session); setStatus("Refreshed"); }
       return;
     }
     if (input === "s" && selectedChange) {
@@ -475,7 +479,7 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
         return;
       }
       setStatus(shouldUnstage ? `Unstaged ${selectedChange.path}` : `Staged ${selectedChange.path}`);
-      if (session) { refreshAll(session); }
+      if (session) { void refreshAll(session); }
       return;
     }
   };
@@ -803,11 +807,8 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
 
     const active = store.activeSession() ?? store.createSession(repo.root);
     setSession(active);
-    refreshAll(active);
-    const timer = setInterval(async () => {
-      await new Promise((r) => setTimeout(r, 0));
-      refreshAll(active, true);
-    }, 5000);
+    void refreshAll(active);
+    const timer = setInterval(() => { void refreshAll(active, true); }, 5000);
     return () => clearInterval(timer);
   }, [demoState, repo.root, store]);
 

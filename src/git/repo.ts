@@ -248,3 +248,47 @@ function runGitOptional(args: string[], cwd: string): { ok: boolean; stdout: str
     stderr: proc.stderr ? Buffer.from(proc.stderr).toString().trim() : "",
   };
 }
+
+async function runGitAsync(args: string[], cwd: string): Promise<string> {
+  const result = await runGitOptionalAsync(args, cwd);
+  if (!result.ok) {
+    throw new Error(result.stderr || `git ${args.join(" ")} failed`);
+  }
+  return result.stdout;
+}
+
+async function runGitOptionalAsync(args: string[], cwd: string): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+  const proc = Bun.spawn(["git", ...args], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  const [stdout, stderr] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+  const exitCode = await proc.exited;
+
+  return { ok: exitCode === 0, stdout, stderr: stderr.trim() };
+}
+
+export async function changesAsync(repo: Repo): Promise<FileChange[]> {
+  const output = await runGitAsync(["status", "--porcelain=v1", "-uall"], repo.root);
+  return parsePorcelain(output);
+}
+
+export async function filesAsync(repo: Repo): Promise<string[]> {
+  const output = await runGitAsync(["ls-files", "--cached", "--others", "--exclude-standard"], repo.root);
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const line of output.split("\n")) {
+    const raw = line.trim();
+    if (!raw) continue;
+    const candidate = unquoteGitPath(raw);
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    result.push(candidate);
+  }
+  return result;
+}
