@@ -204,7 +204,7 @@ interface AppProps {
   theme?: string;
 }
 
-export function CustodianApp({ repo, store, demoState, snapshot = false, theme }: AppProps) {
+export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: AppProps) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const t = getTheme(theme);
@@ -564,7 +564,7 @@ export function CustodianApp({ repo, store, demoState, snapshot = false, theme }
     }
 
     // ── Block navigation (vim-like { and }) ──
-    // Matches Go custodian's jumpBlock: boundary = hunk header, meta, or blank line.
+    // Block boundary = hunk header, meta, or blank line.
     // Kitty keyboard protocol may send { as [ with shift, and } as ] with shift.
     if (input === "}" || (input === "]" && key.shift)) {
       let cur = diffCursor;

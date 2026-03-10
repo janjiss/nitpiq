@@ -4,7 +4,7 @@ import path from "node:path";
 let logPath: string | null = null;
 
 export function initLog(repoRoot: string): void {
-  const dir = path.join(repoRoot, ".git", "custodian");
+  const dir = path.join(repoRoot, ".git", "nitpiq");
   mkdirSync(dir, { recursive: true });
   logPath = path.join(dir, "debug.log");
 }

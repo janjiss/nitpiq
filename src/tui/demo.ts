@@ -25,7 +25,7 @@ export interface DemoState {
 export function createDemoState(): DemoState {
   const session: ReviewSession = {
     id: "demo-session",
-    repoRoot: "/demo/custodian",
+    repoRoot: "/demo/nitpiq",
     active: true,
     createdAt: new Date("2026-03-09T12:00:00Z"),
     updatedAt: new Date("2026-03-09T12:00:00Z"),
@@ -202,14 +202,14 @@ export function createDemoState(): DemoState {
       staged: false,
       unstaged: true,
     },
-    content: "# Custodian Demo\n\nTerminal review UI snapshot mode.",
+    content: "# Nit Demo\n\nTerminal review UI snapshot mode.",
     diff: [
       "diff --git a/README.md b/README.md",
       "new file mode 100644",
       "--- /dev/null",
       "+++ b/README.md",
       "@@ -0,0 +1,3 @@",
-      "+# Custodian Demo",
+      "+# Nit Demo",
       "+",
       "+Terminal review UI snapshot mode.",
     ].join("\n"),
@@ -221,8 +221,8 @@ export function createDemoState(): DemoState {
 
   return {
     repo: {
-      root: "/demo/custodian",
-      name: "custodian-demo",
+      root: "/demo/nitpiq",
+      name: "nitpiq-demo",
       hasHead: true,
     },
     session,

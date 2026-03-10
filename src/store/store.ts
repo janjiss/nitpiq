@@ -50,7 +50,7 @@ export class Store {
   }
 
   static open(repoRoot: string): Store {
-    const dir = path.join(repoRoot, ".git", "custodian");
+    const dir = path.join(repoRoot, ".git", "nitpiq");
     mkdirSync(dir, { recursive: true });
     const dbPath = path.join(dir, "review.db");
     const db = new Database(dbPath, { create: true, strict: true });

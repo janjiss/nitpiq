@@ -7,7 +7,7 @@ dist
 *.tgz
 
 # local review state
-.git/custodian/
+.git/nitpiq/
 
 # code coverage
 coverage

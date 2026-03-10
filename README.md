@@ -1,19 +1,25 @@
-# Custodian JS
+# nitpiq
 
 Terminal-based code review tool for local git changes. Built with Bun, TypeScript, React (Ink), and the React Compiler.
 
 Inspect uncommitted changes, leave anchored review comments, and expose an MCP server so AI tools can participate as a second reviewer.
 
-Review data is stored locally in `.git/custodian/review.db`.
+Review data is stored locally in `.git/nitpiq/review.db`.
 
 ## Prerequisites
 
 - [Bun](https://bun.sh) v1.1+
 
-## Setup
+## Install
 
 ```bash
-git clone <repo-url> && cd custodian-js
+bun install -g nitpiq
+```
+
+Or from source:
+
+```bash
+git clone <repo-url> && cd nitpiq
 bun install
 ```
 
@@ -24,7 +30,13 @@ bun install
 Run inside any git repository:
 
 ```bash
-bun run custodian
+nitpiq
+```
+
+Or with npx:
+
+```bash
+npx nitpiq
 ```
 
 Options:
@@ -40,7 +52,13 @@ Options:
 Start the MCP server for AI tool integration:
 
 ```bash
-bun run custodian-mcp -- /path/to/repo
+nitpiq-mcp /path/to/repo
+```
+
+Or with npx (useful for MCP client configuration):
+
+```bash
+npx nitpiq-mcp /path/to/repo
 ```
 
 The server exposes these tools over stdio:
@@ -56,10 +74,32 @@ The server exposes these tools over stdio:
 | `review_stage_file` | Stage a file |
 | `review_unstage_file` | Unstage a file |
 
-To use with an MCP-compatible client, point it at:
+#### MCP Client Configuration
 
-```bash
-bun run src/cli/custodian-mcp.ts /path/to/repo
+For Claude Desktop, add to your config:
+
+```json
+{
+  "mcpServers": {
+    "nitpiq": {
+      "command": "npx",
+      "args": ["nitpiq-mcp", "/path/to/your/repo"]
+    }
+  }
+}
+```
+
+For Cursor, add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "nitpiq": {
+      "command": "npx",
+      "args": ["nitpiq-mcp", "/path/to/your/repo"]
+    }
+  }
+}
 ```
 
 ## Keybindings

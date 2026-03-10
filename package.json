@@ -1,11 +1,23 @@
 {
-  "name": "custodian-js",
+  "name": "nitpiq",
+  "version": "0.1.0",
+  "description": "Terminal-based code review tool for local git changes",
   "type": "module",
-  "private": true,
+  "license": "MIT",
+  "bin": {
+    "nitpiq": "bin/nitpiq.ts",
+    "nitpiq-mcp": "bin/nitpiq-mcp.ts"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "plugins/",
+    "bunfig.toml"
+  ],
   "scripts": {
-    "custodian": "bun run src/cli/custodian.tsx",
-    "custodian-mcp": "bun run src/cli/custodian-mcp.ts",
-    "dev": "bun run src/cli/custodian.tsx",
+    "nitpiq": "bun run src/cli/nitpiq.tsx",
+    "nitpiq-mcp": "bun run src/cli/nitpiq-mcp.ts",
+    "dev": "bun run src/cli/nitpiq.tsx",
     "check": "tsc --noEmit"
   },
   "devDependencies": {

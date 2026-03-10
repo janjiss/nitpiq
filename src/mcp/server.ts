@@ -10,7 +10,7 @@ import { AuthorModel, ThreadOpen, ThreadResolved } from "../review/types";
 import { Store } from "../store/store";
 
 export function createServer(repo: Repo, store: Store): McpServer {
-  const server = new McpServer({ name: "custodian", version: "0.1.0" });
+  const server = new McpServer({ name: "nitpiq", version: "0.1.0" });
 
   const activeSession = () => store.activeSession() ?? store.createSession(repo.root);
 
@@ -174,7 +174,7 @@ export async function serveStdio(repoPath?: string): Promise<void> {
   const repo = openRepoAt(repoPath);
   const store = Store.open(repo.root);
   initLog(repo.root);
-  debug("custodian-mcp server starting");
+  debug("nitpiq-mcp server starting");
 
   try {
     const server = createServer(repo, store);
