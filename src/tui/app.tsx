@@ -20,7 +20,7 @@ import { extractContext, extractRangeAnchor, relocateThreads } from "../review/a
 import { AuthorHuman, ThreadOpen, ThreadResolved, type Comment, type ReviewSession, type Thread } from "../review/types";
 import { Store } from "../store/store";
 import type { DemoState } from "./demo";
-import { fullFileRows, parseDiffRows, threadMap, visibleWindow, type DiffRow } from "./diff";
+import { fullFileRows, markersForDiffRow, parseDiffRows, threadMapBySide, visibleWindow, type DiffRow } from "./diff";
 import { clearHighlightCache, highlightLine, renderMarkdown } from "./highlight";
 import type { Theme } from "./theme";
 import { bg, fg, getTheme } from "./theme";
@@ -28,6 +28,14 @@ import { bg, fg, getTheme } from "./theme";
 type FocusPane = "files" | "diff";
 type InputMode = "normal" | "comment" | "reply" | "filter" | "search" | "goto" | "visual" | "confirmDelete";
 type FileListMode = "changes" | "all";
+type SidebarEntry = {
+  kind: "file" | "dir";
+  path: string;
+  label: string;
+  depth: number;
+  parentPath: string | null;
+  expanded?: boolean;
+};
 type ViewRow =
   | { kind: "diff"; row: DiffRow; diffIdx: number }
   | { kind: "spacer" }
@@ -40,34 +48,37 @@ type ViewRow =
 // ── Child Components ─────────────────────────────────────────────
 
 interface FileSidebarProps {
-  listedPaths: string[];
+  entries: SidebarEntry[];
   fileCursor: number;
   focused: boolean;
   fileChangeMap: Map<string, FileChange>;
   threadCounts: Record<string, number>;
+  dirThreadCounts: Record<string, number>;
   theme: Theme;
   width: number;
   height: number;
 }
 
-function FileSidebar({ listedPaths, fileCursor, focused, fileChangeMap, threadCounts, theme: t, width, height }: FileSidebarProps) {
-  const win = visibleWindow(listedPaths, fileCursor, height);
+function FileSidebar({ entries, fileCursor, focused, fileChangeMap, threadCounts, dirThreadCounts, theme: t, width, height }: FileSidebarProps) {
+  const win = visibleWindow(entries, fileCursor, height);
   const blank = " ".repeat(width);
   const rows: string[] = [];
   for (let i = 0; i < height; i++) {
     if (i >= win.items.length) { rows.push(blank); continue; }
     const absIdx = win.start + i;
-    const filePath = win.items[i]!;
-    const change = fileChangeMap.get(filePath);
+    const entry = win.items[i]!;
+    const change = entry.kind === "file" ? fileChangeMap.get(entry.path) : undefined;
     const sel = absIdx === fileCursor;
-    const sym = change ? kindSymbol(change.kind) : " ";
+    const sym = entry.kind === "dir" ? fg(t.accent, entry.expanded ? "▾" : "▸") : change ? kindSymbol(change.kind) : " ";
     const csym = colorSymbol(sym, change?.kind, t);
-    const tc = threadCounts[filePath] ?? 0;
+    const tc = entry.kind === "dir" ? (dirThreadCounts[entry.path] ?? 0) : (threadCounts[entry.path] ?? 0);
     const badge = tc > 0 ? fg(t.thread, ` ${tc}`) : "";
     const stg = change?.staged && !change.unstaged ? fg(t.staged, " ✓") : "";
     const pre = sel && focused ? fg(t.accent, "›") : " ";
-    const name = sel ? pc.white(filePath) : pc.dim(filePath);
-    const line = ` ${pre} ${csym} ${name}${badge}${stg}`;
+    const indent = "  ".repeat(entry.depth);
+    const baseName = entry.kind === "dir" ? `${entry.label}/` : entry.label;
+    const name = sel ? pc.white(baseName) : entry.kind === "dir" ? pc.white(baseName) : pc.dim(baseName);
+    const line = ` ${pre} ${indent}${csym} ${name}${badge}${stg}`;
     rows.push(sel && focused ? bg(t.selection, padAnsi(line, width)) : padAnsi(line, width));
   }
   return (
@@ -82,7 +93,7 @@ interface DiffPaneProps {
   visualCursor: number;
   diffCursor: number;
   focused: boolean;
-  markers: ReturnType<typeof threadMap>;
+  markers: ReturnType<typeof threadMapBySide>;
   inputMode: InputMode;
   draft: string;
   theme: Theme;
@@ -171,7 +182,7 @@ function DiffPane({ viewRows, visualCursor, diffCursor, focused, markers, inputM
       vr.diffIdx <= Math.max(visualAnchor, diffCursor);
     const lineNum = row.newLine ?? row.oldLine;
     const lbl = lineNum ? String(lineNum).padStart(3) : "   ";
-    const mark = lineNum && markers.has(lineNum) ? fg(t.thread, "●") : " ";
+    const mark = markersForDiffRow(markers, row).length > 0 ? fg(t.thread, "●") : " ";
 
     const sign = row.kind === "add" ? fg(t.add, "+")
       : row.kind === "delete" ? fg(t.del, "-")
@@ -236,10 +247,12 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
   const [deleteTarget, setDeleteTarget] = useState<Thread | null>(null);
   const [allThreads, setAllThreads] = useState<Thread[]>([]);
   const [pendingLine, setPendingLine] = useState<number | null>(null);
+  const [pendingSidebarPath, setPendingSidebarPath] = useState<string | null>(null);
   const [countPrefix, setCountPrefix] = useState("");
   const [pendingG, setPendingG] = useState(false);
   const [pendingZ, setPendingZ] = useState(false);
   const [scrollOffset, setScrollOffset] = useState<number | null>(null);
+  const [expandedDirs, setExpandedDirs] = useState<string[]>([]);
   const isDemo = Boolean(demoState);
 
   // ── Derived data (compiler auto-memoizes) ──────────────────────
@@ -259,7 +272,11 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
   const fileChangeMap = new Map<string, FileChange>();
   for (const change of fileChanges) fileChangeMap.set(change.path, change);
 
-  const selectedPath = listedPaths[fileCursor] ?? "";
+  const dirThreadCounts = directoryThreadCounts(threadCounts);
+  const sidebarEntries = buildSidebarEntries(listedPaths, fileListMode, new Set(expandedDirs));
+  const selectedEntry = sidebarEntries[fileCursor] ?? null;
+  const selectedPath = selectedEntry?.kind === "file" ? selectedEntry.path : "";
+  
   const selectedChange = fileChangeMap.get(selectedPath) ?? null;
 
   const diffRows = showFullFile ? fullFileRows(currentContent) : parseDiffRows(currentDiff);
@@ -275,10 +292,13 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
       .map(({ index }) => index);
   }
 
-  const markers = threadMap(threads);
-  const selectedLine = diffRows[diffCursor]?.newLine ?? diffRows[diffCursor]?.oldLine ?? null;
-  const threadsAtCursor = selectedLine ? markers.get(selectedLine) ?? [] : [];
+  const markers = threadMapBySide(threads);
+  const threadsAtCursor = diffRows[diffCursor] ? markersForDiffRow(markers, diffRows[diffCursor]!) : [];
   const threadAtLine = threadsAtCursor[0]?.thread ?? null;
+  const threadCursorRows = diffRows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => markersForDiffRow(markers, row).length > 0)
+    .map(({ index }) => index);
 
   const tw = Math.max(stdout.columns || 120, 80);
   const sidebarW = Math.max(18, Math.floor(tw * 0.22));
@@ -294,9 +314,9 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
 
     const lineNum = diffRows[i]!.newLine ?? diffRows[i]!.oldLine;
     if (lineNum) {
-      const entries = markers.get(lineNum);
-      if (entries) {
-        for (const { thread } of entries) {
+        const entries = markersForDiffRow(markers, diffRows[i]!);
+        if (entries) {
+          for (const { thread } of entries) {
           const cs = commentsByThread[thread.id] ?? [];
           if (cs.length === 0) continue;
           const resolved = thread.status === ThreadResolved;
@@ -433,16 +453,24 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
     setAllThreads(store.listThreads(activeSession.id));
   };
 
+  const revealFile = (filePath: string): void => {
+    setExpandedDirs((current) => {
+      const next = new Set(current);
+      for (const dir of ancestorDirs(filePath)) {
+        next.add(dir);
+      }
+      return [...next].sort();
+    });
+  };
+
   const jumpToThread = (thread: Thread): void => {
     if (thread.filePath === currentPath) {
       const idx = diffRows.findIndex((r) => r.newLine === thread.currentLine || r.oldLine === thread.currentLine);
       if (idx >= 0) setDiffCursor(idx);
       setStatus(`Thread at ${thread.filePath}:${thread.currentLine}`);
     } else {
-      const fileIdx = listedPaths.indexOf(thread.filePath);
-      if (fileIdx >= 0) {
-        setFileCursor(fileIdx);
-      }
+      revealFile(thread.filePath);
+      setPendingSidebarPath(thread.filePath);
       setPendingLine(thread.currentLine);
       setFocus("diff");
       void openPath(thread.filePath);
@@ -452,14 +480,39 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
 
   const handleFileInput = (input: string, key: { upArrow?: boolean; downArrow?: boolean; return?: boolean; escape?: boolean }): void => {
     if (input === "q") { exit(); return; }
-    if (input === "j" || key.downArrow) { setFileCursor((c: number) => Math.min(c + 1, Math.max(0, listedPaths.length - 1))); return; }
+    if (input === "j" || key.downArrow) { setFileCursor((c: number) => Math.min(c + 1, Math.max(0, sidebarEntries.length - 1))); return; }
     if (input === "k" || key.upArrow) { setFileCursor((c: number) => Math.max(c - 1, 0)); return; }
-    if (input === "l" || key.return) { setFocus("diff"); return; }
+    if ((input === "l" || key.return) && selectedEntry?.kind === "dir") {
+      setExpandedDirs((current) => {
+        const next = new Set(current);
+        if (next.has(selectedEntry.path)) next.delete(selectedEntry.path);
+        else next.add(selectedEntry.path);
+        return [...next].sort();
+      });
+      return;
+    }
+    if ((input === "l" || key.return) && selectedEntry?.kind === "file") { setFocus("diff"); return; }
+    if (input === "h" && fileListMode === "all") {
+      if (selectedEntry?.kind === "dir" && selectedEntry.expanded) {
+        setExpandedDirs((current) => current.filter((dir) => dir !== selectedEntry.path));
+        return;
+      }
+      const parentPath = selectedEntry?.parentPath;
+      if (parentPath !== null && parentPath !== undefined) {
+        const parentIdx = sidebarEntries.findIndex((entry: SidebarEntry) => entry.path === parentPath);
+        if (parentIdx >= 0) setFileCursor(parentIdx);
+      }
+      return;
+    }
     if (input === "/") { setInputMode("filter"); setDraft(filterQuery); setStatus("Filter files"); return; }
     if (input === "f") {
       setFileListMode((c) => c === "changes" ? "all" : "changes");
       setFileCursor(0);
       setFilterQuery("");
+      if (currentPath) {
+        revealFile(currentPath);
+        setPendingSidebarPath(currentPath);
+      }
       setStatus(fileListMode === "changes" ? "All files" : "Git changes");
       return;
     }
@@ -595,12 +648,9 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
     }
 
     if (input === "]" && !key.shift) {
-      const threadLines = [...markers.keys()].sort((a, b) => a - b);
-      const curLine = selectedLine ?? 0;
-      const nextLine = threadLines.find((l) => l > curLine);
-      if (nextLine) {
-        const idx = diffRows.findIndex((r) => r.newLine === nextLine || r.oldLine === nextLine);
-        if (idx >= 0) setDiffCursor(idx);
+      const nextRow = threadCursorRows.find((rowIndex) => rowIndex > diffCursor);
+      if (nextRow !== undefined) {
+        setDiffCursor(nextRow);
       } else {
         const nextThread = allThreads.find((th) => th.filePath > currentPath);
         if (nextThread) { jumpToThread(nextThread); }
@@ -610,12 +660,9 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
       return;
     }
     if (input === "[" && !key.shift) {
-      const threadLines = [...markers.keys()].sort((a, b) => b - a);
-      const curLine = selectedLine ?? Infinity;
-      const prevLine = threadLines.find((l) => l < curLine);
-      if (prevLine) {
-        const idx = diffRows.findIndex((r) => r.newLine === prevLine || r.oldLine === prevLine);
-        if (idx >= 0) setDiffCursor(idx);
+      const prevRow = [...threadCursorRows].reverse().find((rowIndex) => rowIndex < diffCursor);
+      if (prevRow !== undefined) {
+        setDiffCursor(prevRow);
       } else {
         const prevThread = [...allThreads].reverse().find((th) => th.filePath < currentPath);
         if (prevThread) {
@@ -828,7 +875,7 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
   }, [pendingLine, diffRows]);
 
   useEffect(() => {
-    if (listedPaths.length === 0) {
+    if (sidebarEntries.length === 0) {
       setCurrentPath("");
       setCurrentDiff("");
       setCurrentContent("");
@@ -836,11 +883,29 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
       return;
     }
 
-    const nextPath = listedPaths[Math.min(fileCursor, listedPaths.length - 1)] ?? listedPaths[0] ?? "";
+    const nextPath = sidebarEntries[Math.min(fileCursor, sidebarEntries.length - 1)]?.kind === "file"
+      ? sidebarEntries[Math.min(fileCursor, sidebarEntries.length - 1)]!.path
+      : "";
     if (nextPath && nextPath !== currentPath) {
       void openPath(nextPath);
     }
-  }, [currentPath, fileCursor, listedPaths, showFullFile, expandedContext]);
+  }, [currentPath, fileCursor, sidebarEntries, showFullFile, expandedContext]);
+
+  useEffect(() => {
+    if (!currentPath) return;
+    revealFile(currentPath);
+  }, [currentPath]);
+
+  useEffect(() => {
+    if (!pendingSidebarPath) return;
+    const idx = sidebarEntries.findIndex((entry: SidebarEntry) => entry.kind === "file" && entry.path === pendingSidebarPath);
+    if (idx >= 0 && idx !== fileCursor) {
+      setFileCursor(idx);
+      setPendingSidebarPath(null);
+    } else if (idx >= 0) {
+      setPendingSidebarPath(null);
+    }
+  }, [fileCursor, pendingSidebarPath, sidebarEntries]);
 
   useInput((input, key) => {
     if (key.ctrl && input === "c") { exit(); return; }
@@ -934,7 +999,9 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
   } else if (inputMode === "search" || inputMode === "goto") {
     keybinds = "type to " + inputMode + "  ⏎ confirm  Esc cancel";
   } else if (focus === "files") {
-    keybinds = `j/k ↕  l/⏎ open  f ${fileListMode === "changes" ? "all" : "changes"}  / filter  s stage  r refresh  q quit`;
+    keybinds = fileListMode === "all"
+      ? "j/k ↕  l expand/open  h parent/fold  f changes  / filter  s stage  r refresh  q quit"
+      : "j/k ↕  l/⏎ open  f all  / filter  s stage  r refresh  q quit";
   } else {
     const threadHints = threadAtLine ? "  r resolve  d delete" : "";
     keybinds = `j/k ↕  gg/G top/end  w/b change  {/} hunk  [/] thread  zz center  / search  c comment  v visual${threadHints}  q back`;
@@ -949,11 +1016,12 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
       <Text wrap="truncate-end">{padAnsi(` ${fLabel}`, sidebarW)} {sepChar} {padAnsi(` ${pLabel}`, diffPaneW)}</Text>
       <Box flexDirection="row">
         <FileSidebar
-          listedPaths={listedPaths}
+          entries={sidebarEntries}
           fileCursor={fileCursor}
           focused={focus === "files"}
           fileChangeMap={fileChangeMap}
           threadCounts={threadCounts}
+          dirThreadCounts={dirThreadCounts}
           theme={t}
           width={sidebarW}
           height={contentH}
@@ -1087,5 +1155,92 @@ function wrapText(text: string, firstLineW: number, contLineW: number): string[]
     }
   }
   if (result.length === 0) result.push("");
+  return result;
+}
+
+function buildSidebarEntries(paths: string[], mode: FileListMode, expandedDirs: Set<string>): SidebarEntry[] {
+  if (mode === "changes") {
+    return paths.map((filePath) => ({
+      kind: "file",
+      path: filePath,
+      label: filePath,
+      depth: 0,
+      parentPath: null,
+    }));
+  }
+
+  const dirs = new Map<string, Set<string>>();
+  const files = new Map<string, string[]>();
+  const ensureDir = (dirPath: string) => {
+    if (!dirs.has(dirPath)) dirs.set(dirPath, new Set());
+    if (!files.has(dirPath)) files.set(dirPath, []);
+  };
+
+  ensureDir("");
+  for (const filePath of paths) {
+    const parts = filePath.split("/");
+    let parent = "";
+    for (let i = 0; i < parts.length - 1; i++) {
+      const dirPath = parent ? `${parent}/${parts[i]}` : parts[i]!;
+      ensureDir(parent);
+      ensureDir(dirPath);
+      dirs.get(parent)!.add(dirPath);
+      parent = dirPath;
+    }
+    ensureDir(parent);
+    files.get(parent)!.push(filePath);
+  }
+
+  const entries: SidebarEntry[] = [];
+  const visit = (parent: string, depth: number) => {
+    const childDirs = [...(dirs.get(parent) ?? [])].sort((a, b) => a.localeCompare(b));
+    for (const dirPath of childDirs) {
+      entries.push({
+        kind: "dir",
+        path: dirPath,
+        label: dirPath.split("/").pop() ?? dirPath,
+        depth,
+        parentPath: parent || null,
+        expanded: expandedDirs.has(dirPath),
+      });
+      if (expandedDirs.has(dirPath)) {
+        visit(dirPath, depth + 1);
+      }
+    }
+
+    const childFiles = [...(files.get(parent) ?? [])].sort((a, b) => a.localeCompare(b));
+    for (const filePath of childFiles) {
+      entries.push({
+        kind: "file",
+        path: filePath,
+        label: filePath.split("/").pop() ?? filePath,
+        depth,
+        parentPath: parent || null,
+      });
+    }
+  };
+
+  visit("", 0);
+  return entries;
+}
+
+function directoryThreadCounts(threadCounts: Record<string, number>): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const [filePath, count] of Object.entries(threadCounts)) {
+    for (const dir of ancestorDirs(filePath)) {
+      result[dir] = (result[dir] ?? 0) + count;
+    }
+  }
+  return result;
+}
+
+function ancestorDirs(filePath: string): string[] {
+  const parts = filePath.split("/");
+  const result: string[] = [];
+  let current = "";
+  for (let i = 0; i < parts.length - 1; i++) {
+    current = current ? `${current}/${parts[i]}` : parts[i]!;
+    result.push(current);
+  }
   return result;
 }

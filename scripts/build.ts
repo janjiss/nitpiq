@@ -3,7 +3,7 @@
 import { mkdirSync, cpSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-const VERSION = process.env.VERSION ?? "0.1.0";
+const VERSION = process.env.VERSION ?? "0.5.0";
 const ROOT = path.resolve(import.meta.dirname, "..");
 const DIST = path.join(ROOT, "dist");
 
@@ -15,6 +15,44 @@ const targets = [
 ];
 
 const SHIMS = path.join(ROOT, "scripts", "shims");
+
+function createWrapperPackage(name: string, bins: string[]) {
+  console.log(`\n--- Building ${name} package ---`);
+  const pkgDir = path.join(DIST, name);
+  const binDir = path.join(pkgDir, "bin");
+  mkdirSync(binDir, { recursive: true });
+
+  cpSync(path.join(ROOT, "npm", "postinstall.mjs"), path.join(pkgDir, "postinstall.mjs"));
+  for (const bin of bins) {
+    cpSync(path.join(ROOT, "npm", "bin", bin), path.join(binDir, bin));
+  }
+
+  const optDeps: Record<string, string> = {};
+  for (const t of targets) {
+    optDeps[t.pkg] = VERSION;
+  }
+
+  writeFileSync(
+    path.join(pkgDir, "package.json"),
+    JSON.stringify(
+      {
+        name,
+        version: VERSION,
+        description: name === "nitpiq-mcp"
+          ? "MCP server for nitpiq local code review"
+          : "Terminal-based code review tool for local git changes",
+        license: "MIT",
+        bin: Object.fromEntries(bins.map((bin) => [bin, `bin/${bin}`])),
+        scripts: {
+          postinstall: "node postinstall.mjs",
+        },
+        optionalDependencies: optDeps,
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+}
 
 function compile(entry: string, outfile: string, target: string) {
   const result = Bun.spawnSync(
@@ -67,41 +105,7 @@ for (const t of targets) {
   );
 }
 
-// Build the main wrapper package
-console.log("\n--- Building main nitpiq package ---");
-const mainDir = path.join(DIST, "nitpiq");
-const mainBinDir = path.join(mainDir, "bin");
-mkdirSync(mainBinDir, { recursive: true });
-
-cpSync(path.join(ROOT, "npm", "postinstall.mjs"), path.join(mainDir, "postinstall.mjs"));
-cpSync(path.join(ROOT, "npm", "bin", "nitpiq"), path.join(mainBinDir, "nitpiq"));
-cpSync(path.join(ROOT, "npm", "bin", "nitpiq-mcp"), path.join(mainBinDir, "nitpiq-mcp"));
-
-const optDeps: Record<string, string> = {};
-for (const t of targets) {
-  optDeps[t.pkg] = VERSION;
-}
-
-writeFileSync(
-  path.join(mainDir, "package.json"),
-  JSON.stringify(
-    {
-      name: "nitpiq",
-      version: VERSION,
-      description: "Terminal-based code review tool for local git changes",
-      license: "MIT",
-      bin: {
-        nitpiq: "bin/nitpiq",
-        "nitpiq-mcp": "bin/nitpiq-mcp",
-      },
-      scripts: {
-        postinstall: "node postinstall.mjs",
-      },
-      optionalDependencies: optDeps,
-    },
-    null,
-    2,
-  ) + "\n",
-);
+createWrapperPackage("nitpiq", ["nitpiq", "nitpiq-mcp"]);
+createWrapperPackage("nitpiq-mcp", ["nitpiq-mcp"]);
 
 console.log("\nDone! Packages in dist/");

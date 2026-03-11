@@ -14,6 +14,8 @@ export interface ThreadMarker {
   preview: string;
 }
 
+type ThreadSide = "old" | "new";
+
 export function parseDiffRows(diffText: string): DiffRow[] {
   const rows: DiffRow[] = [];
   let oldLine = 0;
@@ -80,6 +82,56 @@ export function threadMap(threads: Thread[]): Map<number, ThreadMarker[]> {
     map.set(thread.currentLine, existing);
   }
   return map;
+}
+
+export function threadMapBySide(threads: Thread[]): Map<string, ThreadMarker[]> {
+  const map = new Map<string, ThreadMarker[]>();
+  for (const thread of threads) {
+    if (thread.currentLine <= 0) {
+      continue;
+    }
+
+    const preview = thread.firstComment.split("\n")[0] ?? "";
+    const marker: ThreadMarker = { thread, preview };
+    const existing = map.get(threadMarkerKey(thread.side === "old" ? "old" : "new", thread.currentLine)) ?? [];
+    existing.push(marker);
+    map.set(threadMarkerKey(thread.side === "old" ? "old" : "new", thread.currentLine), existing);
+  }
+  return map;
+}
+
+export function markersForDiffRow(markers: Map<string, ThreadMarker[]>, row: DiffRow): ThreadMarker[] {
+  const result: ThreadMarker[] = [];
+  const seen = new Set<string>();
+
+  const addMarkers = (side: ThreadSide, line: number | null) => {
+    if (!line) {
+      return;
+    }
+
+    for (const marker of markers.get(threadMarkerKey(side, line)) ?? []) {
+      if (seen.has(marker.thread.id)) {
+        continue;
+      }
+      seen.add(marker.thread.id);
+      result.push(marker);
+    }
+  };
+
+  if (row.kind === "delete") {
+    addMarkers("old", row.oldLine);
+    return result;
+  }
+
+  addMarkers("new", row.newLine);
+  if (row.kind === "context") {
+    addMarkers("old", row.oldLine);
+  }
+  return result;
+}
+
+function threadMarkerKey(side: ThreadSide, line: number): string {
+  return `${side}:${line}`;
 }
 
 export function visibleWindow<T>(items: T[], cursor: number, height: number): { start: number; end: number; items: T[] } {
