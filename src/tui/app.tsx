@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
 import Fuse from "fuse.js";
 import pc from "picocolors";
@@ -254,6 +254,8 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
   const [scrollOffset, setScrollOffset] = useState<number | null>(null);
   const [expandedDirs, setExpandedDirs] = useState<string[]>([]);
   const isDemo = Boolean(demoState);
+  const currentPathRef = useRef(currentPath);
+  const currentContentRef = useRef(currentContent);
 
   // ── Derived data (compiler auto-memoizes) ──────────────────────
 
@@ -396,8 +398,8 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
         setStatus(`Loaded ${nextChanges.length} change(s)`);
       }
 
-      if (currentPath) {
-        loadThreads(activeSession, currentPath);
+      if (currentPathRef.current) {
+        loadThreads(activeSession, currentPathRef.current, currentContentRef.current);
       }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
@@ -441,7 +443,7 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
     }
   };
 
-  const loadThreads = (activeSession: ReviewSession, filePath: string, content = currentContent): void => {
+  const loadThreads = (activeSession: ReviewSession, filePath: string, content = currentContentRef.current): void => {
     if (!store) return;
 
     const relocated = relocateThreads(store.listThreads(activeSession.id, filePath), content.split("\n"));
@@ -864,6 +866,14 @@ export function NitpiqApp({ repo, store, demoState, snapshot = false, theme }: A
     const timer = setTimeout(() => exit(), 150);
     return () => clearTimeout(timer);
   }, [exit, snapshot]);
+
+  useEffect(() => {
+    currentPathRef.current = currentPath;
+  }, [currentPath]);
+
+  useEffect(() => {
+    currentContentRef.current = currentContent;
+  }, [currentContent]);
 
   useEffect(() => {
     if (pendingLine === null) return;

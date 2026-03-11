@@ -10,7 +10,7 @@ import { AuthorModel, ThreadOpen, ThreadResolved } from "../review/types";
 import { Store } from "../store/store";
 
 export function createServer(repo: Repo, store: Store): McpServer {
-  const server = new McpServer({ name: "nitpiq", version: "0.5.0" });
+  const server = new McpServer({ name: "nitpiq", version: "0.6.0" });
 
   const activeSession = () => store.activeSession() ?? store.createSession(repo.root);
 

@@ -1,6 +1,6 @@
 {
   "name": "nitpiq",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Terminal-based code review tool for local git changes",
   "type": "module",
   "license": "MIT",
