@@ -11,7 +11,7 @@ import { Store } from "../store/store";
 
 export function createServer(repo: Repo, store: Store): McpServer {
   const server = new McpServer(
-    { name: "nitpiq", version: "0.6.0" },
+    { name: "nitpiq", version: "0.7.0" },
     {
       instructions:
         "nitpiq is a local code review MCP server for reviewing uncommitted git changes. " +

@@ -3,7 +3,7 @@
 import { mkdirSync, cpSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-const VERSION = process.env.VERSION ?? "0.6.0";
+const VERSION = process.env.VERSION ?? "0.7.0";
 const ROOT = path.resolve(import.meta.dirname, "..");
 const DIST = path.join(ROOT, "dist");
 
