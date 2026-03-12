@@ -6,14 +6,18 @@ Inspect uncommitted changes, leave anchored review comments, and expose an MCP s
 
 Review data is stored locally in `.git/nitpiq/review.db`.
 
-## Prerequisites
-
-- [Bun](https://bun.sh) v1.1+
-
 ## Install
 
+Install globally with npm:
+
 ```bash
-bun install -g nitpiq
+npm install -g nitpiq
+```
+
+Or with Bun:
+
+```bash
+bun add -g nitpiq
 ```
 
 Or from source:
@@ -33,10 +37,14 @@ Run inside any git repository:
 nitpiq
 ```
 
-Or with npx:
+Or without installing globally:
 
 ```bash
 npx nitpiq
+```
+
+```bash
+bunx nitpiq
 ```
 
 Options:
@@ -55,10 +63,14 @@ Start the MCP server for AI tool integration:
 nitpiq-mcp /path/to/repo
 ```
 
-Or with npx (useful for MCP client configuration):
+Or without installing globally:
 
 ```bash
 npx nitpiq-mcp /path/to/repo
+```
+
+```bash
+bunx nitpiq-mcp /path/to/repo
 ```
 
 The server exposes these tools over stdio:
@@ -106,6 +118,8 @@ For OpenCode, add this to `opencode.json`:
 }
 ```
 
+If you prefer Bun there too, replace `"npx"` with `"bunx"` in the command array.
+
 For Claude Code, either add this to `.mcp.json` in your project root:
 
 ```json
@@ -123,6 +137,12 @@ Or add it from the CLI:
 
 ```bash
 claude mcp add --scope project --transport stdio nitpiq -- npx nitpiq-mcp /path/to/your/repo
+```
+
+If you prefer Bun, use `bunx` instead:
+
+```bash
+claude mcp add --scope project --transport stdio nitpiq -- bunx nitpiq-mcp /path/to/your/repo
 ```
 
 ## Keybindings
@@ -190,6 +210,8 @@ Set with `--theme=<name>`:
 - **gruvbox** -- warm retro colors
 
 ## Development
+
+Bun is only required for development from source.
 
 ```bash
 git clone <repo-url> && cd nitpiq
