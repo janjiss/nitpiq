@@ -10,14 +10,23 @@ import { AuthorModel, ThreadOpen, ThreadResolved } from "../review/types";
 import { Store } from "../store/store";
 
 export function createServer(repo: Repo, store: Store): McpServer {
-  const server = new McpServer({ name: "nitpiq", version: "0.6.0" });
+  const server = new McpServer(
+    { name: "nitpiq", version: "0.6.0" },
+    {
+      instructions:
+        "nitpiq is a local code review MCP server for reviewing uncommitted git changes. " +
+        "Use these tools when the user wants to review local changes, inspect nitpiq review threads, reply to feedback, resolve comments, apply edits from review, or stage reviewed files. " +
+        "Prefer nitpiq tools for local review workflows over generic repository inspection when the request is about reviewing or managing feedback on local changes.",
+    },
+  );
 
   const activeSession = () => store.activeSession() ?? store.createSession(repo.root);
 
   server.registerTool(
     "review_list_changes",
     {
-      description: "List uncommitted file changes in the repository.",
+      title: "Nitpiq List Changes",
+      description: "Use for nitpiq code review. Lists local uncommitted git changes that should be reviewed.",
     },
     async () => ({
       content: [
@@ -40,7 +49,9 @@ export function createServer(repo: Repo, store: Store): McpServer {
   server.registerTool(
     "review_list_threads",
     {
-      description: "List review threads, optionally filtered by file and status.",
+      title: "Nitpiq List Threads",
+      description:
+        "Use for nitpiq review workflow. Lists nitpiq review threads, optionally filtered by file and thread status.",
       inputSchema: {
         file_path: z.string().optional(),
         status: z.enum(["open", "resolved", "all"]).optional(),
@@ -86,7 +97,8 @@ export function createServer(repo: Repo, store: Store): McpServer {
   server.registerTool(
     "review_reply_thread",
     {
-      description: "Post a reply comment to an existing review thread.",
+      title: "Nitpiq Reply Thread",
+      description: "Use for nitpiq review workflow. Posts a reply to an existing nitpiq review thread.",
       inputSchema: {
         thread_id: z.string(),
         body: z.string(),
@@ -101,7 +113,8 @@ export function createServer(repo: Repo, store: Store): McpServer {
   server.registerTool(
     "review_resolve_thread",
     {
-      description: "Mark a review thread as resolved.",
+      title: "Nitpiq Resolve Thread",
+      description: "Use for nitpiq review workflow. Marks a nitpiq review thread as resolved.",
       inputSchema: { thread_id: z.string() },
     },
     async ({ thread_id }) => {
@@ -113,7 +126,8 @@ export function createServer(repo: Repo, store: Store): McpServer {
   server.registerTool(
     "review_reopen_thread",
     {
-      description: "Reopen a resolved review thread.",
+      title: "Nitpiq Reopen Thread",
+      description: "Use for nitpiq review workflow. Reopens a resolved nitpiq review thread.",
       inputSchema: { thread_id: z.string() },
     },
     async ({ thread_id }) => {
@@ -125,7 +139,8 @@ export function createServer(repo: Repo, store: Store): McpServer {
   server.registerTool(
     "review_apply_edit",
     {
-      description: "Write new content to a file in the repository.",
+      title: "Nitpiq Apply Edit",
+      description: "Use when addressing nitpiq review feedback. Writes updated content to a file in the reviewed repository.",
       inputSchema: {
         file_path: z.string(),
         content: z.string(),
@@ -142,7 +157,8 @@ export function createServer(repo: Repo, store: Store): McpServer {
   server.registerTool(
     "review_stage_file",
     {
-      description: "Stage a file with git add.",
+      title: "Nitpiq Stage File",
+      description: "Use after nitpiq review. Stages a reviewed file with git add.",
       inputSchema: { file_path: z.string() },
     },
     async ({ file_path }) => {
@@ -154,7 +170,8 @@ export function createServer(repo: Repo, store: Store): McpServer {
   server.registerTool(
     "review_unstage_file",
     {
-      description: "Unstage a file.",
+      title: "Nitpiq Unstage File",
+      description: "Use in nitpiq review workflow. Removes a file from the git staging area.",
       inputSchema: { file_path: z.string() },
     },
     async ({ file_path }) => {
