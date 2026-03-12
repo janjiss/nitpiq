@@ -90,7 +90,25 @@ const gruvbox: Theme = {
   warning: [250, 189, 47],
 };
 
-export const themes: Record<string, Theme> = { dark, catppuccin, nord, gruvbox };
+const light: Theme = {
+  name: "light",
+  border: "#6c8fcf",
+  borderFocus: "#2f6fe4",
+  cursor: [120, 160, 235],
+  selection: [150, 185, 245],
+  accent: [30, 90, 190],
+  add: [30, 130, 70],
+  addBg: [180, 235, 210],
+  del: [200, 60, 70],
+  delBg: [245, 200, 200],
+  hunk: [40, 120, 200],
+  thread: [120, 80, 160],
+  threadBg: [200, 205, 240],
+  staged: [20, 130, 80],
+  warning: [200, 140, 30],
+};
+
+export const themes: Record<string, Theme> = { dark, catppuccin, nord, gruvbox, light };
 export const themeNames = Object.keys(themes);
 
 export function getTheme(name?: string): Theme {

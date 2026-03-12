@@ -50,7 +50,7 @@ bunx nitpiq
 Options:
 
 ```
---theme=<name>   Set color theme (dark, catppuccin, nord, gruvbox)
+--theme=<name>   Set color theme (dark, catppuccin, nord, gruvbox, light)
 --demo           Launch with fixed demo data (no git required)
 --snapshot        Render a single frame and exit (for screenshots)
 ```

@@ -53,6 +53,16 @@ const palettes: Record<string, SyntaxColors> = {
     property: [235, 219, 178],
     punctuation: [168, 153, 132],
   },
+  light: {
+    keyword: [116, 76, 181],
+    string: [20, 120, 80],
+    comment: [94, 110, 130],
+    number: [182, 92, 30],
+    type: [30, 110, 140],
+    fn: [24, 90, 170],
+    property: [40, 55, 80],
+    punctuation: [90, 105, 125],
+  },
 };
 
 const KEYWORDS = new Set([
