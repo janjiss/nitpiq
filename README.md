@@ -76,7 +76,9 @@ The server exposes these tools over stdio:
 
 #### MCP Client Configuration
 
-For Claude Desktop, add to your config:
+Replace `/path/to/your/repo` with the absolute path to the git repository you want nitpiq to review.
+
+For Cursor, add this to `.cursor/mcp.json`:
 
 ```json
 {
@@ -89,7 +91,22 @@ For Claude Desktop, add to your config:
 }
 ```
 
-For Cursor, add to `.cursor/mcp.json`:
+For OpenCode, add this to `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "nitpiq": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "nitpiq-mcp", "/path/to/your/repo"]
+    }
+  }
+}
+```
+
+For Claude Code, either add this to `.mcp.json` in your project root:
 
 ```json
 {
@@ -100,6 +117,12 @@ For Cursor, add to `.cursor/mcp.json`:
     }
   }
 }
+```
+
+Or add it from the CLI:
+
+```bash
+claude mcp add --scope project --transport stdio nitpiq -- npx nitpiq-mcp /path/to/your/repo
 ```
 
 ## Keybindings
